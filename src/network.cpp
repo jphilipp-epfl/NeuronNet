@@ -128,3 +128,55 @@ void Network::print_traj(const int time, const std::map<std::string, size_t> &_n
             }
     (*_out) << std::endl;
 }
+
+std::pair<size_t, double> Network::degree(const size_t& n) const
+{
+	std::vector<std::pair<size_t, double> > neighbors_vec (neighbors(n));
+	double intensity(0);
+	for (auto pair_ : neighbors_vec)
+	{
+		intensity += pair_.second;
+	}
+	return std::pair<size_t,double> ({neighbors_vec.size(), intensity});
+};
+
+std::vector<std::pair<size_t, double> > Network::neighbors(const size_t& n) const
+{
+	std::vector<std::pair<size_t, double> > neighbors_vec;
+	for (auto lign = links.lower_bound({n,0});lign != links.end() && (lign->first).first == n; ++lign) //Comme les éléments de links sont classés en fonction de la valeur du premier nombre de la paire
+	{																								   //puis en fonction de la valeur du deuxieme nombre de la pair s'il y a égalité sur le premier,	
+		neighbors_vec.push_back({(lign->first).second, lign->second});								   //la pair {n,0} sera forcement la première paire décrivant une liaison entrante vers le neurone n.
+	}
+	return neighbors_vec;
+};
+
+
+
+std::set<size_t> Network::step(const std::vector<double>& random_vec)
+{
+	std::set<size_t> firing_neurons;
+	for (size_t i(0); i < neurons.size();++i)
+	{
+		if(neurons[i].firing())
+		{
+			neurons[i].reset();
+			firing_neurons.insert(i);
+		}
+	}
+	for (size_t i(0); i < neurons.size();++i)
+	{
+		double Intensity(random_vec[i]);
+		if(neurons[i].is_inhibitory()) Intensity *= 0.4;
+		std::vector<std::pair<size_t, double> > neighbors_vec (neighbors(i));
+		for(size_t j(0); j < neighbors_vec.size(); ++j)
+		{
+			if(neurons[(neighbors_vec[j]).first].firing())
+			{
+				Intensity += (neighbors_vec[j]).second;
+			}
+		}	
+		neurons[i].input(Intensity);
+		neurons[i].step();
+	}
+	return firing_neurons;	
+};
